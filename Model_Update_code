@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[4]:
 
 
 import pandas as pd
@@ -9,7 +9,7 @@ import numpy as np
 import sklearn as sk
 
 
-# In[7]:
+# In[5]:
 
 
 import pandas as pd
@@ -17,19 +17,13 @@ train = pd.read_csv(r'C:\Users\kritika1\Desktop\OV_9 Classification\OV_9_Data.cs
 print (train)
 
 
-# In[8]:
-
-
-train.head(10)
-
-
-# In[9]:
+# In[6]:
 
 
 train.info()
 
 
-# In[10]:
+# In[7]:
 
 
 train.describe(include = 'all')
@@ -37,7 +31,7 @@ train.describe(include = 'all')
 
 # # Number of Words
 
-# In[11]:
+# In[8]:
 
 
 train['word_count'] = train['Justifications'].apply(lambda x: len(str(x).split(" ")))
@@ -46,7 +40,7 @@ train[['Justifications','word_count']].head()
 
 # # Number of characters
 
-# In[12]:
+# In[9]:
 
 
 train['char_count'] = train['Justifications'].str.len() ## this also includes spaces
@@ -55,7 +49,7 @@ train[['Justifications','char_count']].head()
 
 # # Average Word Length
 
-# In[13]:
+# In[10]:
 
 
 def avg_word(sentence):
@@ -68,13 +62,13 @@ train[['Justifications','avg_word']].head()
 
 # # Number of stopwords
 
-# In[14]:
+# In[11]:
 
 
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 
 
-# In[15]:
+# In[12]:
 
 
 from sklearn.feature_extraction import stop_words
@@ -82,7 +76,7 @@ stop =stop_words.ENGLISH_STOP_WORDS
 print(stop)
 
 
-# In[16]:
+# In[13]:
 
 
 train['stopwords'] = train['Justifications'].apply(lambda x: len([x for x in str(x).split() if x in stop]))
@@ -91,7 +85,7 @@ train[['Justifications','stopwords']].head()
 #Number of special characters
 # # Lower case
 
-# In[17]:
+# In[14]:
 
 
 train['Justifications'] = train['Justifications'].apply(lambda x: " ".join(x.lower() for x in str(x).split()))
@@ -100,7 +94,7 @@ train['Justifications'].head()
 
 # # Removing Punctuation
 
-# In[18]:
+# In[15]:
 
 
 train['Justifications'] = train['Justifications'].str.replace('[^\w\s]','')
@@ -109,7 +103,7 @@ train['Justifications'].head()
 
 # # Removal of Stop Words
 
-# In[19]:
+# In[16]:
 
 
 
@@ -119,14 +113,14 @@ train['Justifications'].head()
 
 # # Common word removal
 
-# In[21]:
+# In[17]:
 
 
 freq = pd.Series(' '.join(train['Justifications']).split()).value_counts()[:20]
 print(freq)
 
 
-# In[22]:
+# In[18]:
 
 
 freq = list(freq.index)
@@ -136,14 +130,14 @@ train['Justifications'].head()
 
 # # Rare words removal
 
-# In[23]:
+# In[19]:
 
 
 freq = pd.Series(' '.join(train['Justifications']).split()).value_counts()[-50:]
 print(freq)
 
 
-# In[24]:
+# In[20]:
 
 
 freq = list(freq.index)
@@ -151,7 +145,7 @@ train['Justifications'] = train['Justifications'].apply(lambda x: " ".join(x for
 train['Justifications'].head()
 
 
-# In[25]:
+# In[21]:
 
 
 # Removing Short Words
@@ -162,7 +156,7 @@ train['Justifications'].head()
 
 # # Tokenization
 
-# In[26]:
+# In[22]:
 
 
 # Tokenization
@@ -174,7 +168,7 @@ tokenized_Justifications.head()
 
 # # Stemming
 
-# In[27]:
+# In[23]:
 
 
 from nltk.stem.porter import *
@@ -184,7 +178,7 @@ tokenized_Justifications = tokenized_Justifications.apply(lambda x: [stemmer.ste
 tokenized_Justifications.head()
 
 
-# In[28]:
+# In[24]:
 
 
 # jonning the tokens back 
@@ -195,30 +189,31 @@ for i in range(len(tokenized_Justifications)):
 train['tidy_Justifications'] = tokenized_Justifications
 
 train.head()
+train.shape
 
 
-# In[29]:
+# In[25]:
 
 
 df=train
-df.head()
+df.head(2)
 
 
-# In[30]:
+# In[27]:
 
 
-col = ['OVR_Reasons', 'Justifications']
+col = ['OVR_Reasons', 'tidy_Justifications']
 df = df[col]
 df.columns
 
-
-# In[32]:
+# Plot Graph
+# In[28]:
 
 
 from io import StringIO
 
-df = df[pd.notnull(df['Justifications'])]
-df.columns = ['OVR_Reasons', 'Justifications']
+df = df[pd.notnull(df['tidy_Justifications'])]
+df.columns = ['OVR_Reasons', 'tidy_Justifications']
 
 df['category_id'] = df['OVR_Reasons'].factorize()[0]
 
@@ -228,27 +223,41 @@ id_to_category = dict(category_id_df[['category_id', 'OVR_Reasons']].values)
 df.head()
 
 
-# In[34]:
+# In[30]:
 
 
 import matplotlib.pyplot as plt
 fig = plt.figure(figsize=(8,6))
-df.groupby('OVR_Reasons').Justifications.count().plot.bar(ylim=0)
+df.groupby('OVR_Reasons').tidy_Justifications.count().plot.bar(ylim=0)
 plt.show()
 
 
-# In[36]:
+# # Features Extraction  into features
+
+# In[32]:
 
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 tfidf = TfidfVectorizer(sublinear_tf=True, min_df=5, norm='l2', encoding='latin-1', ngram_range=(1, 2), stop_words='english')
-features = tfidf.fit_transform(df.Justifications).toarray()
+features = tfidf.fit_transform(df.tidy_Justifications).toarray()
 labels = df.category_id
 features.shape
 
 
-# In[37]:
+# In[34]:
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+tfidf_vectorizer = TfidfVectorizer(max_df=0.90, min_df=2, max_features=1000, stop_words='english')
+# TF-IDF feature matrix
+tfidf = tfidf_vectorizer.fit_transform(df['tidy_Justifications'])
+tfidf.shape
+
+
+# # features_chi2
+
+# In[35]:
 
 
 from sklearn.feature_selection import chi2
@@ -265,7 +274,56 @@ for Product, category_id in sorted(category_to_id.items()):
   print("  . Most correlated bigrams:\n. {}".format('\n. '.join(bigrams[-N:])))
 
 
-# In[39]:
+# # Build Model 
+
+# In[ ]:
+
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import GaussianNB
+
+xtrain, xtest, ytrain, ytest = train_test_split(train['Justifications'], df['OVR_Reasons'], random_state = 0)
+
+
+# In[ ]:
+
+
+from sklearn.naive_bayes import MultinomialNB
+clf = MultinomialNB()
+clf.fit(xtrain, ytrain)
+y_pred = clf.predict(x_test)
+
+train_score = clf.score(xtrain, ytrain)
+test_score = clf.score(xtest, ytest)
+
+train_score, test_score
+
+
+# In[ ]:
+
+
+# Init the Gaussian Classifier
+model = MultinomialNB()
+
+# Train the model 
+model.fit(xtrain, ytrain)
+
+# Predict Output 
+pred = model.predict(xtest)
+
+# Plot Confusion Matrix
+mat = confusion_matrix(pred, ytest)
+names = np.unique(pred)
+sns.heatmap(mat, square=True, annot=True, fmt='d', cbar=False,
+            xticklabels=names, yticklabels=names)
+plt.xlabel('Truth')
+plt.ylabel('Predicted')
+
+
+# In[ ]:
 
 
 from sklearn.model_selection import train_test_split
@@ -273,7 +331,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
 
-X_train, X_test, y_train, y_test = train_test_split(df['Justifications'], df['OVR_Reasons'], random_state = 0)
+X_train, X_test, y_train, y_test = train_test_split(df['tidy_Justifications'], df['OVR_Reasons'], random_state = 0)
 
 count_vect = CountVectorizer()
 X_train_counts = count_vect.fit_transform(X_train)
@@ -283,53 +341,36 @@ X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
 clf = MultinomialNB().fit(X_train_tfidf, y_train)
 
 
-# In[44]:
+# In[ ]:
 
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.svm import LinearSVC
-from sklearn.model_selection import cross_val_score
-
-
-models = [
-    RandomForestClassifier(n_estimators=200, max_depth=3, random_state=0),
-    LinearSVC(),
-    MultinomialNB(),
-    LogisticRegression(random_state=0),
-]
-CV = 5
-cv_df = pd.DataFrame(index=range(CV * len(models)))
-entries = []
-for model in models:
-  model_name = model.__class__.__name__
-  accuracies = cross_val_score(model, features, labels, scoring='accuracy', cv=CV)
-  for fold_idx, accuracy in enumerate(accuracies):
-    entries.append((model_name, fold_idx, accuracy))
-    
-cv_df = pd.DataFrame(entries, columns=['model_name', 'fold_idx', 'accuracy'])
-
-
-# In[45]:
-
-
-import seaborn as sns
-
-sns.boxplot(x='model_name', y='accuracy', data=cv_df)
-sns.stripplot(x='model_name', y='accuracy', data=cv_df, 
-              size=8, jitter=True, edgecolor="gray", linewidth=2)
-plt.show()
-
-
-# In[46]:
-
-
-cv_df.groupby('model_name').accuracy.mean()
+X_train, X_test, y_train, y_test = train_test_split(df['Justifications'], df['OVR_Reasons'], random_state = 0)
 
 
 # In[ ]:
 
 
+X_test.shape
 
+
+# In[ ]:
+
+
+count_vect = CountVectorizer()
+X_train_counts = count_vect.fit_transform(X_train)
+print(X_train_counts)
+
+
+# In[ ]:
+
+
+tfidf_transformer = TfidfTransformer()
+X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
+print(X_train_tfidf)
+
+
+# In[ ]:
+
+
+print(X_train_tfidf)
 
