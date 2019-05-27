@@ -1,0 +1,335 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
+import pandas as pd
+import numpy as np
+import sklearn as sk
+
+
+# In[7]:
+
+
+import pandas as pd
+train = pd.read_csv(r'C:\Users\kritika1\Desktop\OV_9 Classification\OV_9_Data.csv')
+print (train)
+
+
+# In[8]:
+
+
+train.head(10)
+
+
+# In[9]:
+
+
+train.info()
+
+
+# In[10]:
+
+
+train.describe(include = 'all')
+
+
+# # Number of Words
+
+# In[11]:
+
+
+train['word_count'] = train['Justifications'].apply(lambda x: len(str(x).split(" ")))
+train[['Justifications','word_count']].head()
+
+
+# # Number of characters
+
+# In[12]:
+
+
+train['char_count'] = train['Justifications'].str.len() ## this also includes spaces
+train[['Justifications','char_count']].head()
+
+
+# # Average Word Length
+
+# In[13]:
+
+
+def avg_word(sentence):
+  words = str(sentence).split()
+  return (sum(len(word) for word in words)/len(words))
+
+train['avg_word'] = train['Justifications'].apply(lambda x: avg_word(x))
+train[['Justifications','avg_word']].head()
+
+
+# # Number of stopwords
+
+# In[14]:
+
+
+from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
+
+
+# In[15]:
+
+
+from sklearn.feature_extraction import stop_words
+stop =stop_words.ENGLISH_STOP_WORDS
+print(stop)
+
+
+# In[16]:
+
+
+train['stopwords'] = train['Justifications'].apply(lambda x: len([x for x in str(x).split() if x in stop]))
+train[['Justifications','stopwords']].head()
+
+#Number of special characters
+# # Lower case
+
+# In[17]:
+
+
+train['Justifications'] = train['Justifications'].apply(lambda x: " ".join(x.lower() for x in str(x).split()))
+train['Justifications'].head()
+
+
+# # Removing Punctuation
+
+# In[18]:
+
+
+train['Justifications'] = train['Justifications'].str.replace('[^\w\s]','')
+train['Justifications'].head()
+
+
+# # Removal of Stop Words
+
+# In[19]:
+
+
+
+train['Justifications'] = train['Justifications'].apply(lambda x: " ".join(x for x in x.split() if x not in stop))
+train['Justifications'].head()
+
+
+# # Common word removal
+
+# In[21]:
+
+
+freq = pd.Series(' '.join(train['Justifications']).split()).value_counts()[:20]
+print(freq)
+
+
+# In[22]:
+
+
+freq = list(freq.index)
+train['Justifications'] = train['Justifications'].apply(lambda x: " ".join(x for x in str(x).split() if x not in freq))
+train['Justifications'].head()
+
+
+# # Rare words removal
+
+# In[23]:
+
+
+freq = pd.Series(' '.join(train['Justifications']).split()).value_counts()[-50:]
+print(freq)
+
+
+# In[24]:
+
+
+freq = list(freq.index)
+train['Justifications'] = train['Justifications'].apply(lambda x: " ".join(x for x in x.split() if x not in freq))
+train['Justifications'].head()
+
+
+# In[25]:
+
+
+# Removing Short Words
+
+train['Justifications'] = train['Justifications'].apply(lambda x: ' '.join([w for w in str(x).split() if len(w)>3]))
+train['Justifications'].head()
+
+
+# # Tokenization
+
+# In[26]:
+
+
+# Tokenization
+#Tokens are individual terms or words, and tokenization is the process of splitting a string of text into tokens.
+
+tokenized_Justifications = train['Justifications'].apply(lambda x: str(x).split())
+tokenized_Justifications.head()
+
+
+# # Stemming
+
+# In[27]:
+
+
+from nltk.stem.porter import *
+stemmer = PorterStemmer()
+
+tokenized_Justifications = tokenized_Justifications.apply(lambda x: [stemmer.stem(i) for i in x]) # stemming
+tokenized_Justifications.head()
+
+
+# In[28]:
+
+
+# jonning the tokens back 
+
+for i in range(len(tokenized_Justifications)):
+    tokenized_Justifications[i] = ' '.join(tokenized_Justifications[i])
+
+train['tidy_Justifications'] = tokenized_Justifications
+
+train.head()
+
+
+# In[29]:
+
+
+df=train
+df.head()
+
+
+# In[30]:
+
+
+col = ['OVR_Reasons', 'Justifications']
+df = df[col]
+df.columns
+
+
+# In[32]:
+
+
+from io import StringIO
+
+df = df[pd.notnull(df['Justifications'])]
+df.columns = ['OVR_Reasons', 'Justifications']
+
+df['category_id'] = df['OVR_Reasons'].factorize()[0]
+
+category_id_df = df[['OVR_Reasons', 'category_id']].drop_duplicates().sort_values('category_id')
+category_to_id = dict(category_id_df.values)
+id_to_category = dict(category_id_df[['category_id', 'OVR_Reasons']].values)
+df.head()
+
+
+# In[34]:
+
+
+import matplotlib.pyplot as plt
+fig = plt.figure(figsize=(8,6))
+df.groupby('OVR_Reasons').Justifications.count().plot.bar(ylim=0)
+plt.show()
+
+
+# In[36]:
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+tfidf = TfidfVectorizer(sublinear_tf=True, min_df=5, norm='l2', encoding='latin-1', ngram_range=(1, 2), stop_words='english')
+features = tfidf.fit_transform(df.Justifications).toarray()
+labels = df.category_id
+features.shape
+
+
+# In[37]:
+
+
+from sklearn.feature_selection import chi2
+import numpy as np
+N = 2
+for Product, category_id in sorted(category_to_id.items()):
+  features_chi2 = chi2(features, labels == category_id)
+  indices = np.argsort(features_chi2[0])
+  feature_names = np.array(tfidf.get_feature_names())[indices]
+  unigrams = [v for v in feature_names if len(v.split(' ')) == 1]
+  bigrams = [v for v in feature_names if len(v.split(' ')) == 2]
+  print("# '{}':".format(Product))
+  print("  . Most correlated unigrams:\n. {}".format('\n. '.join(unigrams[-N:])))
+  print("  . Most correlated bigrams:\n. {}".format('\n. '.join(bigrams[-N:])))
+
+
+# In[39]:
+
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.naive_bayes import MultinomialNB
+
+X_train, X_test, y_train, y_test = train_test_split(df['Justifications'], df['OVR_Reasons'], random_state = 0)
+
+count_vect = CountVectorizer()
+X_train_counts = count_vect.fit_transform(X_train)
+tfidf_transformer = TfidfTransformer()
+X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
+
+clf = MultinomialNB().fit(X_train_tfidf, y_train)
+
+
+# In[44]:
+
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
+from sklearn.model_selection import cross_val_score
+
+
+models = [
+    RandomForestClassifier(n_estimators=200, max_depth=3, random_state=0),
+    LinearSVC(),
+    MultinomialNB(),
+    LogisticRegression(random_state=0),
+]
+CV = 5
+cv_df = pd.DataFrame(index=range(CV * len(models)))
+entries = []
+for model in models:
+  model_name = model.__class__.__name__
+  accuracies = cross_val_score(model, features, labels, scoring='accuracy', cv=CV)
+  for fold_idx, accuracy in enumerate(accuracies):
+    entries.append((model_name, fold_idx, accuracy))
+    
+cv_df = pd.DataFrame(entries, columns=['model_name', 'fold_idx', 'accuracy'])
+
+
+# In[45]:
+
+
+import seaborn as sns
+
+sns.boxplot(x='model_name', y='accuracy', data=cv_df)
+sns.stripplot(x='model_name', y='accuracy', data=cv_df, 
+              size=8, jitter=True, edgecolor="gray", linewidth=2)
+plt.show()
+
+
+# In[46]:
+
+
+cv_df.groupby('model_name').accuracy.mean()
+
+
+# In[ ]:
+
+
+
+
